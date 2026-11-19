@@ -153,6 +153,13 @@
   <!-- ================================================================
        TAB 1 — TRANG CHỦ
        ================================================================ -->
+  <!-- Nhắc khi mở trong trình duyệt của Zalo/Facebook… (không cài được, dữ liệu dễ mất) -->
+  <div id="inAppBanner" class="hidden mb-4 rounded-2xl border-2 border-amber-400 bg-amber-50 p-4 text-amber-900" role="alert">
+    <p class="font-semibold">⚠ Bạn đang mở trong <span id="inAppName"></span></p>
+    <p class="text-sm mt-1">Để <b>cài ứng dụng lên màn hình chính</b> và giữ dữ liệu lâu dài, hãy bấm <b>⋮</b> hoặc <b>•••</b> ở góc trên → <b>“Mở bằng trình duyệt”</b>.</p>
+    <button type="button" id="inAppHow" class="mt-2 text-sm font-semibold underline">Xem hướng dẫn</button>
+  </div>
+
   <section id="tab-home" class="tab-panel space-y-5">
     <div class="hoa-van bg-kem-50 rounded-2xl border border-kem-300 shadow-sm overflow-hidden">
       <div class="grid sm:grid-cols-[auto,1fr]">
@@ -327,7 +334,6 @@
       </button>
       <button id="btnInstall" type="button" class="hidden px-4 py-2 rounded-full border border-man-700 bg-white text-man-700 text-sm font-semibold">📲 Cài lên màn hình chính</button>
     </div>
-    <p id="iosHint" class="hidden text-xs text-stone-500 mt-2">iPhone/iPad: bấm nút Chia sẻ của Safari → “Thêm vào MH chính” để cài như ứng dụng.</p>
     <div class="mt-3 text-[13px] leading-relaxed text-stone-500">
       <p>Phát triển bởi: <b class="text-man-700 font-semibold">A Hưng</b></p>
       <p class="flex flex-wrap justify-center items-center gap-x-2 gap-y-1">
@@ -546,6 +552,23 @@
     <h3 class="font-serif text-center font-bold text-[#ffd98a] mb-8" id="rmTitle"></h3>
     <div class="vk-text font-serif" id="rmBody"></div>
     <p class="text-center text-[#6b5638] mt-12 mb-6">— Hết —</p>
+  </div>
+</div>
+
+<!-- ================================================================
+     MODAL: HƯỚNG DẪN CÀI LÊN MÀN HÌNH CHÍNH (khi trình duyệt không có hộp cài tự động)
+     ================================================================ -->
+<div id="installModal" class="modal hidden fixed inset-0 z-40 bg-black/50 flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="installTitle">
+  <div class="relative bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl p-5 space-y-4 max-h-[92vh] overflow-y-auto">
+    <button type="button" aria-label="Đóng" class="modal-close absolute top-3 right-3 w-10 h-10 rounded-full border border-kem-300 text-2xl leading-none text-stone-500">×</button>
+    <div class="flex items-center gap-3 pr-10">
+      <img src="icon-192.png" alt="" class="w-12 h-12 rounded-xl" onerror="this.remove()">
+      <h3 id="installTitle" class="font-serif text-xl font-bold text-man-800">Cài lên màn hình chính</h3>
+    </div>
+    <p class="text-stone-600 text-sm">Cài xong, bạn mở <b>Lịch Giỗ</b> từ màn hình chính như một ứng dụng: toàn màn hình, mở nhanh, dùng được khi mất mạng.</p>
+    <p id="installNote" class="font-semibold text-man-700"></p>
+    <ol id="installSteps" class="list-decimal pl-6 space-y-2 text-stone-800"></ol>
+    <button type="button" class="modal-close w-full bg-man-700 hover:bg-man-800 text-white font-semibold px-5 py-3 rounded-xl">Đã hiểu</button>
   </div>
 </div>
 
@@ -1921,34 +1944,110 @@ const Notify = {
    6i. PWA — chỉ bật khi chạy qua http(s) (file:// không hỗ trợ Service Worker)
    ===================================================================== */
 const Pwa = {
-  deferred: null,
+  deferred: null,      // sự kiện beforeinstallprompt (Chrome/Edge/Samsung Internet cho cài 1 chạm)
+
+  /** Nhận diện môi trường để hướng dẫn cài cho đúng */
+  env() {
+    const ua = navigator.userAgent;
+    const ios = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const inApp = /Zalo|FBAN|FBAV|FB_IAB|FBIOS|Instagram|Line\/|TikTok|musical_ly|Messenger/i.test(ua);
+    const inAppName = /Zalo/i.test(ua) ? 'Zalo' : /Instagram/i.test(ua) ? 'Instagram' : /TikTok|musical_ly/i.test(ua) ? 'TikTok'
+      : /Line\//i.test(ua) ? 'LINE' : inApp ? 'Facebook/Messenger' : '';
+    return {
+      standalone: matchMedia('(display-mode: standalone)').matches || navigator.standalone === true,
+      ios, inApp, inAppName,
+      samsung: /SamsungBrowser/i.test(ua),
+      android: /Android/i.test(ua),
+      chrome: /Chrome\//i.test(ua) && !/Edg\/|OPR\/|SamsungBrowser/i.test(ua),
+      http: /^https?:$/.test(location.protocol)
+    };
+  },
+
   init() {
-    if (!/^https?:$/.test(location.protocol)) return;
-    const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const env = this.env();
+    // Đã chạy như ứng dụng (mở từ màn hình chính) → không cần nút cài
+    if (env.standalone) { $('#btnInstall').classList.add('hidden'); return; }
+    // Nút cài luôn hiện; bấm vào sẽ cài 1 chạm nếu được, không thì mở hướng dẫn
+    $('#btnInstall').classList.remove('hidden');
+    // Trình duyệt bên trong Zalo/Facebook… không cho cài → nhắc mở bằng trình duyệt
+    if (env.inApp) {
+      $('#inAppName').textContent = env.inAppName;
+      $('#inAppBanner').classList.remove('hidden');
+    }
+    if (!env.http) return;      // file:// không hỗ trợ Service Worker
     const link = document.createElement('link');
     link.rel = 'manifest'; link.href = 'manifest.json';
     document.head.appendChild(link);
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(e => console.warn('Không đăng ký được Service Worker', e));
     }
-    if (isIOS && !isStandalone) $('#iosHint').classList.remove('hidden');
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
       this.deferred = e;
-      $('#btnInstall').classList.remove('hidden');
     });
     window.addEventListener('appinstalled', () => {
+      this.deferred = null;
       $('#btnInstall').classList.add('hidden');
+      UI.closeModal('installModal');
       UI.toast('Đã cài ứng dụng lên màn hình chính.');
     });
   },
+
+  /** Các bước hướng dẫn cài theo trình duyệt (chỉ chuỗi do ứng dụng soạn, không có dữ liệu người dùng) */
+  guide(env) {
+    if (env.inApp) return {
+      note: `Bạn đang mở trong ứng dụng ${env.inAppName}. Trình duyệt bên trong ${env.inAppName} không cho cài ứng dụng, và dữ liệu nhập ở đây có thể không còn khi mở bằng trình duyệt khác.`,
+      steps: [
+        `Bấm nút <b>⋮</b> hoặc <b>•••</b> ở góc trên bên phải màn hình ${env.inAppName}.`,
+        'Chọn <b>“Mở bằng trình duyệt”</b> (hoặc “Mở trong Chrome / Safari”).',
+        'Trong trình duyệt vừa mở, bấm lại nút <b>📲 Cài lên màn hình chính</b> ở cuối trang.'
+      ]};
+    if (env.ios) return {
+      note: 'Trên iPhone/iPad, cài bằng Safari:',
+      steps: [
+        'Mở trang này bằng <b>Safari</b> (nếu đang ở trình duyệt khác).',
+        'Bấm nút <b>Chia sẻ</b> (ô vuông có mũi tên đi lên) ở thanh dưới.',
+        'Kéo xuống, chọn <b>“Thêm vào MH chính”</b> rồi bấm <b>Thêm</b>.'
+      ]};
+    if (env.samsung) return {
+      note: 'Trên Samsung Internet:',
+      steps: [
+        'Bấm biểu tượng <b>☰</b> (Menu) ở góc phải dưới.',
+        'Chọn <b>“Thêm trang vào”</b> → <b>“Màn hình chính”</b>.',
+        'Bấm <b>Thêm</b>. Biểu tượng <b>祭 Lịch Giỗ</b> sẽ hiện trên màn hình chính.'
+      ]};
+    if (env.android) return {
+      note: 'Trên Chrome (Android):',
+      steps: [
+        'Bấm nút <b>⋮</b> ở góc trên bên phải.',
+        'Chọn <b>“Thêm vào Màn hình chính”</b> hoặc <b>“Cài đặt ứng dụng”</b>.',
+        'Bấm <b>Cài đặt</b>. Biểu tượng <b>祭 Lịch Giỗ</b> sẽ hiện trên màn hình chính.'
+      ]};
+    return {
+      note: 'Trên máy tính (Chrome hoặc Edge):',
+      steps: [
+        'Bấm biểu tượng <b>cài đặt</b> (màn hình có mũi tên) ở cuối thanh địa chỉ.',
+        'Hoặc mở menu <b>⋮</b> → <b>“Truyền, lưu và chia sẻ”</b> → <b>“Cài đặt trang dưới dạng ứng dụng”</b>.',
+        'Bấm <b>Cài đặt</b>.'
+      ]};
+  },
+
   async install() {
-    if (!this.deferred) return;
-    this.deferred.prompt();
-    await this.deferred.userChoice.catch(() => {});
-    this.deferred = null;
-    $('#btnInstall').classList.add('hidden');
+    const env = this.env();
+    // Chrome/Edge/Samsung đã cho phép → mở hộp cài 1 chạm của trình duyệt
+    if (this.deferred && !env.inApp) {
+      const ev = this.deferred;
+      this.deferred = null;
+      ev.prompt();
+      const choice = await ev.userChoice.catch(() => null);
+      if (choice && choice.outcome === 'accepted') $('#btnInstall').classList.add('hidden');
+      return;
+    }
+    // Không có hộp cài tự động → hiện hướng dẫn đúng cho trình duyệt đang dùng
+    const g = this.guide(env);
+    $('#installNote').textContent = g.note;
+    $('#installSteps').innerHTML = g.steps.map(s => `<li>${s}</li>`).join('');
+    UI.openModal('installModal');
   }
 };
 
@@ -2059,6 +2158,7 @@ function bindEvents() {
   // Ủng hộ & cài đặt
   $('#btnDonate').addEventListener('click', () => UI.openModal('donateModal'));
   $('#btnInstall').addEventListener('click', () => Pwa.install());
+  $('#inAppHow').addEventListener('click', () => Pwa.install());
 
   // Modal chung: nút đóng, bấm nền tối, phím Esc
   $$('.modal').forEach(m => {
