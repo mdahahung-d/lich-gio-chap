@@ -5,7 +5,7 @@
    - Tailwind CDN & Google Fonts: dùng bản đã lưu ngay, đồng thời cập nhật ngầm.
    Khi sửa index.html, TĂNG số phiên bản CACHE để người dùng nhận bản mới.
    ===================================================================== */
-const CACHE = 'lich-gio-chap-v2';
+const CACHE = 'lich-gio-chap-v3';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 const CDN_HOSTS = ['cdn.tailwindcss.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 

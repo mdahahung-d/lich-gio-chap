@@ -17,6 +17,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Serif:wght@400;600;700&display=swap" rel="stylesheet">
 <!-- Tailwind Play CDN, khóa phiên bản để giao diện ổn định và cache offline được -->
+<script>
+  // Trên *.netlify.app có nhãn "Powered by Netlify" cố định ở góc dưới → bật lớp chừa chỗ (xem CSS .has-badge)
+  if (/\.netlify\.app$/i.test(location.hostname)) document.documentElement.classList.add('has-badge');
+</script>
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <script>
   tailwind.config = {
@@ -52,6 +56,20 @@
   #readMode .vk-empty { color:#8a7a5a; }
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
   .chip[aria-pressed="true"] { background:#7a1f2b; color:#fff; border-color:#7a1f2b; }
+
+  /* ---------- Chừa chỗ cho nhãn "Powered by Netlify" (gói miễn phí gắn ở góc phải dưới) ----------
+     Lớp .has-badge chỉ được thêm khi chạy trên *.netlify.app, nơi khác giữ nguyên bố cục. */
+  html.has-badge .bottom-nav { padding-bottom: calc(env(safe-area-inset-bottom) + 64px); }
+  html.has-badge #readMode > div:last-child { padding-bottom: 7rem; }
+  html.has-badge main { padding-bottom: 13rem; }
+  html.has-badge #toast { bottom: 10rem; }
+  @media (max-width: 639px) {
+    html.has-badge .modal > * { padding-bottom: 80px; }
+  }
+  @media (min-width: 768px) {
+    html.has-badge main { padding-bottom: 6rem; }
+    html.has-badge #toast { bottom: 5.5rem; }
+  }
 
   /* ---------- BẢN IN: chỉ in #printRoot, ẩn toàn bộ giao diện ---------- */
   #printRoot { display:none; }
@@ -292,7 +310,7 @@
 <!-- ================================================================
      THANH TAB DƯỚI (ĐIỆN THOẠI)
      ================================================================ -->
-<nav class="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-kem-300 shadow-[0_-2px_10px_rgba(0,0,0,.06)] safe-bottom z-30" aria-label="Chọn mục">
+<nav class="bottom-nav md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-kem-300 shadow-[0_-2px_10px_rgba(0,0,0,.06)] safe-bottom z-30" aria-label="Chọn mục">
   <div class="grid grid-cols-3">
     <button class="tab-btn py-2.5 flex flex-col items-center text-stone-500" data-tab="home">
       <span class="text-2xl" aria-hidden="true">🏠</span><span class="text-sm font-semibold">Trang chủ</span>
