@@ -56,6 +56,9 @@
   #readMode .vk-empty { color:#8a7a5a; }
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
   .chip[aria-pressed="true"] { background:#7a1f2b; color:#fff; border-color:#7a1f2b; }
+  /* Ô nhập không được rộng hơn khung chứa (điện thoại đặt cỡ chữ hệ thống lớn làm ô nhập phình ra) */
+  .grid > *, .flex > input, .flex > select { min-width: 0; }
+  input, select, textarea { max-width: 100%; }
 
   /* ---------- Chừa chỗ cho nhãn "Powered by Netlify" (gói miễn phí gắn ở góc phải dưới) ----------
      Lớp .has-badge chỉ được thêm khi chạy trên *.netlify.app, nơi khác giữ nguyên bố cục. */
