@@ -320,8 +320,9 @@
        ================================================================ -->
   <footer class="mt-10 pt-5 border-t border-kem-300 text-center">
     <div class="flex flex-wrap justify-center gap-2">
+      <!-- Chỉ hiện ở tab Ngày giỗ (bật/tắt trong Tabs.show) -->
       <button id="btnDonate" type="button"
-        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-vang-500/60 bg-kem-50 text-man-700 text-sm font-medium hover:bg-kem-200 hover:border-vang-500 transition shadow-sm">
+        class="hidden inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-vang-500/60 bg-kem-50 text-man-700 text-sm font-medium hover:bg-kem-200 hover:border-vang-500 transition shadow-sm">
         ☕ Mời tác giả ly cà phê <span class="text-stone-500">(Ủng hộ Lịch Sạch)</span>
       </button>
       <button id="btnInstall" type="button" class="hidden px-4 py-2 rounded-full border border-man-700 bg-white text-man-700 text-sm font-semibold">📲 Cài lên màn hình chính</button>
@@ -1144,6 +1145,8 @@ const Tabs = {
       b.classList.toggle('bg-kem-100', on);
       b.classList.toggle('text-man-800', on);
     });
+    // Nút "Mời tác giả ly cà phê" chỉ hiện ở tab Ngày giỗ
+    $('#btnDonate').classList.toggle('hidden', name !== 'gio');
     Store.write(Store.KEYS.tab, name, true);
     if (name === 'home') Render.home();
     if (name === 'gio') Render.gioList();
