@@ -5,12 +5,39 @@
    - Tailwind CDN & Google Fonts: dùng bản đã lưu ngay, đồng thời cập nhật ngầm.
    Khi sửa index.html, TĂNG số phiên bản CACHE để người dùng nhận bản mới.
    ===================================================================== */
-const CACHE = 'lich-gio-chap-v6';
+const CACHE = 'lich-gio-chap-v7';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 const CDN_HOSTS = ['cdn.tailwindcss.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
+// Phải khớp đúng URL trong index.html
+const TAILWIND_URL = 'https://cdn.tailwindcss.com/3.4.17';
+const FONTS_CSS_URL = 'https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Serif:wght@400;600;700&display=swap';
+
+/* Lưu sẵn giao diện (Tailwind) và phông chữ ngay khi cài (RISK01):
+   trước đây CDN chỉ được lưu khi request đi qua service worker, nên người mở lần đầu rồi
+   mất mạng có thể thấy trang không có CSS. Lỗi tải CDN không làm hỏng việc cài đặt. */
+async function precacheCdn(cache) {
+  try {
+    const tw = await fetch(new Request(TAILWIND_URL, { mode: 'no-cors' }));
+    await cache.put(TAILWIND_URL, tw);
+  } catch (e) { /* bỏ qua khi đang mất mạng */ }
+  try {
+    const cssRes = await fetch(FONTS_CSS_URL, { mode: 'cors' });
+    if (cssRes.ok) {
+      const css = await cssRes.clone().text();
+      await cache.put(FONTS_CSS_URL, cssRes);
+      const fontUrls = [...new Set(css.match(/https:\/\/fonts\.gstatic\.com\/[^)'"\s]+/g) || [])];
+      await Promise.all(fontUrls.map(u =>
+        fetch(u, { mode: 'cors' }).then(r => r.ok ? cache.put(u, r) : null).catch(() => null)));
+    }
+  } catch (e) { /* bỏ qua */ }
+}
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches.open(CACHE)
+      .then(c => c.addAll(SHELL).then(() => precacheCdn(c)))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', event => {

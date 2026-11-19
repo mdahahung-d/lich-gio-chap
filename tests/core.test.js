@@ -47,5 +47,33 @@ r=await Core.mergeImport(list,inc,async()=>({action:'copy',applyAll:true}));
 eq([r.list.length,r.stats.copied,r.list.filter(x=>x.ten.endsWith('(bản sao)')).length],[5,2,2],'Thêm bản sao');
 r=await Core.mergeImport(list,inc,async()=>({action:'cancel'}));
 eq(r,null,'Hủy nhập trả null');
+
+// ---- Hồi quy theo báo cáo kiểm thử 19/11/2026 ----
+// BUG03: ngày âm không được bằng 0
+const lu=(d,m,y)=>{const x=Lunar.solarToLunar(d,m,y);return [x.day,x.month,x.year,x.leap];};
+eq(lu(7,5,2054),[30,3,2054,0],'BUG03: 07/05/2054 = 30/3 (trước đây mùng 0/4)');
+eq(lu(8,5,2054),[1,4,2054,0],'BUG03: 08/05/2054 = mùng 1/4');
+eq(lu(9,4,2062),[30,2,2062,0],'BUG03: 09/04/2062 = 30/2 (trước đây mùng 0/3)');
+eq(Lunar.lunarToSolar(30,3,2054,0),[7,5,2054],'BUG03: đổi ngược 30/3/2054');
+let scan={range:0,seq:0,rt:0},prev=null,days=0;
+for(let jd=Lunar.jdFromDate(1,1,1900);jd<=Lunar.jdFromDate(31,12,2100);jd++){days++;
+  const [d,m,y]=Lunar.jdToDate(jd);const l=Lunar.solarToLunar(d,m,y);
+  if(l.day<1||l.day>30)scan.range++;
+  if(prev){const same=l.month===prev.month&&l.leap===prev.leap&&l.year===prev.year;
+    if(same?l.day!==prev.day+1:(l.day!==1||(prev.day!==29&&prev.day!==30)))scan.seq++;}
+  const s=Lunar.lunarToSolar(l.day,l.month,l.year,l.leap);if(!s||s[0]!==d||s[1]!==m||s[2]!==y)scan.rt++;
+  prev=l;}
+eq([days,scan],[73414,{range:0,seq:0,rt:0}],'BUG03: quét 1900–2100: ngày 1–30, liên tục, đổi ngược khớp');
+
+// BUG02: ID trùng
+const dupFile=[{id:'qa_duplicate',ten:'QA A',ngay:11,thang:10},{id:'qa_duplicate',ten:'QA B',ngay:15,thang:10}];
+const pl=Core.parseList(dupFile);
+eq([pl.list.length,pl.fixed,pl.list[0].id,pl.list[0].id!==pl.list[1].id],[2,1,'qa_duplicate',true],'BUG02: file 2 bản ghi cùng ID → giữ cả 2, cấp ID mới cho bản sau');
+const edited=pl.list.map(x=>x.id===pl.list[1].id?{...x,ten:'QA EDIT'}:x);
+eq(edited.map(x=>x.ten),['QA A','QA EDIT'],'BUG02: sửa theo ID chỉ đổi đúng 1 bản ghi');
+eq(pl.list.filter(x=>x.id!==pl.list[1].id).map(x=>x.ten),['QA A'],'BUG02: xóa theo ID chỉ xóa đúng 1 bản ghi');
+eq(Core.dedupeIds(pl.list).fixed,0,'BUG02: danh sách đã khử không cần sửa thêm');
+eq(Core.parseList('khong phai mang'),{list:[],fixed:0,bad:0},'parseList chịu được dữ liệu hỏng');
+
 console.log(fail?`\n${fail} FAIL`:'\nTẤT CẢ PASS');process.exitCode=fail?1:0;
 })();
